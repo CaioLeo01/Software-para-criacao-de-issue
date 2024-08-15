@@ -1,0 +1,2 @@
+Nesse software eu faço a criação de issue no Itilsm Jira através da API o jira.
+Para a criação das issue faz-se nescessaio a leitura de um arquivo xlsx que atende as condições para a criação e após a leitura do arquivo,o analista deve colocar seu login e sua senha e após isso,deve colocar as labels (rotulos que descreva sua issue brevimente).Logo após inserir as Labels,deve selecionar se vai dividir a criação desses chamados com alguém ,se sim,colocar o login do usuário que vai dividir e depois deve apertar em start para começar a criação das issues atrvés da API  
