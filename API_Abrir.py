@@ -30,7 +30,7 @@ class MainWindow(QMainWindow):
         self.initUI()
     
     def initUI(self):
-        self.setWindowTitle('Escolha um número')
+        self.setWindowTitle('Open tickets')
         self.setGeometry(100, 100, 400, 400)
         
         self.widget = QWidget(self)
@@ -40,10 +40,10 @@ class MainWindow(QMainWindow):
         self.file_layout = QHBoxLayout()
         
         self.file_input = QLineEdit(self)
-        self.file_input.setPlaceholderText("Caminho do arquivo")
+        self.file_input.setPlaceholderText("File path")
         self.file_layout.addWidget(self.file_input)
         
-        self.file_button = QPushButton('Selecionar Arquivo', self)
+        self.file_button = QPushButton('Select file', self)
         self.file_button.clicked.connect(self.open_file_dialog)
         self.file_layout.addWidget(self.file_button)
         
@@ -108,6 +108,10 @@ class MainWindow(QMainWindow):
         self.result_button.clicked.connect(self.confirm_choice)
         self.main_layout.addWidget(self.result_button)
 
+        self.close_tickets_button = QPushButton('Close Tickets', self)
+        self.close_tickets_button.clicked.connect(self.close_tickets)
+        self.main_layout.addWidget(self.close_tickets_button)
+
         self.image_label = QLabel(self)
         self.pixmap = QPixmap('Zé_bonitinho.png')
         self.image_label.setPixmap(self.pixmap)
@@ -117,6 +121,10 @@ class MainWindow(QMainWindow):
         
         self.main_layout.addWidget(self.image_label)
         self.main_layout.addStretch(1)
+
+        self.developer_label = QLabel('Desenvolvido por Caio Manoel©2024', self)
+        self.developer_label.setAlignment(Qt.AlignCenter)
+        self.main_layout.addWidget(self.developer_label)
 
         self.JIRA_USERNAME = None
         self.senha = None
@@ -129,8 +137,8 @@ class MainWindow(QMainWindow):
         self.Limitador_analista = 0
 
     def open_file_dialog(self):
-        file_path, _ = QFileDialog.getOpenFileName(self, "Selecione o arquivo", "", "chamados.xlsx")
-        if file_path:
+      file_path, _ = QFileDialog.getOpenFileName(self, "Selecione o arquivo", "", "Excel Files (*.xlsx);;All Files (*)")
+      if file_path:
             self.Arquivo_ler = file_path
             self.file_input.setText(file_path)
             self.file_input.setToolTip("Caminho do arquivo: " + file_path)
@@ -204,6 +212,24 @@ class MainWindow(QMainWindow):
             self.password_input.setEchoMode(QLineEdit.Password)
             self.eye_button.setIcon(self.eye_icon_closed)
 
+    def close_tickets(self):
+    # Exibe uma caixa de diálogo para confirmar se o usuário deseja encerrar os chamados
+        reply = QMessageBox.question(
+            self, 
+            'Confirmação', 
+            "Deseja encerrar os chamados?", 
+            QMessageBox.Yes | QMessageBox.No, 
+            QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            # Se o usuário clicar em "Sim", chama a função para encerrar os chamados
+            self.Encerrar_chamado()
+        else:
+            # Se o usuário clicar em "Não", exibe uma mensagem e não executa a função
+            print("Encerramento dos chamados cancelado pelo usuario.")
+
+
     def execute_choice(self):
         print("Executando escolha com os seguintes dados:")
         print(f"Usuário: {self.JIRA_USERNAME}")
@@ -229,6 +255,8 @@ class MainWindow(QMainWindow):
             Item = f"{self.tabela.loc[self.c, 'Item de catalogo']}"
             Querencia_linkar  = f"{self.tabela.loc[self.c, 'Deseja linkar']}"
             Mud = f"{self.tabela.loc[self.c, 'Mud']}"
+            Querencia_de_evidencia = f"{self.tabela.loc[self.c, 'Deseja evidencia']}"
+            evidencia = f"{self.tabela.loc[self.c, 'Evidencia']}"
 
             def Escolha_Do_item(Item):
                 item_dict = {     
@@ -734,6 +762,10 @@ class MainWindow(QMainWindow):
                 jira.issue_update(issue_key, fields={"assignee": {"name": Analista}})
                 #Add labels
                 jira.issue_update(issue_key, fields={'labels': self.labels})
+                
+                #Tranforma tudo da sting em minusculo e retira os espaços de inicio é de fim
+                Querencia_linkar = Querencia_linkar.lower().strip()
+                
                 #Linka
                 if Querencia_linkar == "sim" or  Querencia_linkar == "Sim":
                     jira.create_issue_link({
@@ -756,6 +788,14 @@ class MainWindow(QMainWindow):
                 response = requests.put(url, json=payload, auth=HTTPBasicAuth(self.JIRA_USERNAME, self.senha), headers=headers)
                 #Add comntario
                 jira.issue_add_comment(issue_key, comentario)
+
+
+                #Tranforma tudo da sting em minusculo e retira os espaços de inicio é de fim
+                Querencia_de_evidencia = Querencia_de_evidencia.lower().strip()
+
+                #Anexa evidencia 
+                if Querencia_de_evidencia == "sim" or Querencia_de_evidencia == "Sim":
+                    jira.add_attachment(issue_key, evidencia)
                 
                 nova_linha = {'Chamado': issue_key}
                 df_tabela_chamados = pd.concat([df_tabela_chamados, pd.DataFrame([nova_linha])], ignore_index=True)
@@ -767,7 +807,7 @@ class MainWindow(QMainWindow):
                 self.c += 1
 
     
-        self.Encerrar_chamado()
+        
         self.image_label.setVisible(True)
 
     def toggle_password(self, checked):
@@ -779,40 +819,50 @@ class MainWindow(QMainWindow):
             self.eye_button.setIcon(self.eye_icon_closed)
 
     def Encerrar_chamado(self):
-        self.nome_arquivo = "chamados_criados.xlsx"
+        try:
+    
+            self.nome_arquivo = "chamados_criados.xlsx"
+            
+            colunas = 'Chamado'
+
+            tabela = pd.read_excel(self.nome_arquivo)
+            display(tabela)
+
+            Num_linha = tabela.shape[0]
+            linha = 0
+            c = 0
+
+            print("Número de linhas no certificado:", Num_linha)
+
+            for linha in range(Num_linha):
+                jira = Jira(url=JIRA_URL, username=self.JIRA_USERNAME, password=self.senha)
+
+                issue_key = f"{tabela.loc[linha, colunas]}"
+                print(issue_key)
+
+                
+                
+                
+                # Transição de estado para "Encerrado"
+                try:
+                    jira.issue_transition(issue_key, "Encerrado")
+                    print(f"Issue {issue_key} encerrada com sucesso.")
+                except Exception as e:
+                    print(f"Erro ao encerrar a issue {issue_key}: {e}")
+
+                tabela = tabela.drop(index=c)
+                tabela.to_excel(self.nome_arquivo, index=False)
+
+                linha += 1
+                c += 1
         
-        colunas = 'Chamado'
+        except Exception as e:
+            # Tratar erros gerais para evitar que o software feche
+            print(f"Ocorreu um erro ao tentar encerrar os chamados: {e}")
+            QMessageBox.critical(self, 'Erro', f"Ocorreu um erro ao encerrar os chamados: {e}")
+        
 
-        tabela = pd.read_excel(self.nome_arquivo)
-        display(tabela)
 
-        Num_linha = tabela.shape[0]
-        linha = 0
-        c = 0
-
-        print("Número de linhas no certificado:", Num_linha)
-
-        for linha in range(Num_linha):
-            jira = Jira(url=JIRA_URL, username=self.JIRA_USERNAME, password=self.senha)
-
-            issue_key = f"{tabela.loc[linha, colunas]}"
-            print(issue_key)
-
-            
-            
-            
-            # Transição de estado para "Encerrado"
-            try:
-                jira.issue_transition(issue_key, "Encerrado")
-                print(f"Issue {issue_key} encerrada com sucesso.")
-            except Exception as e:
-                print(f"Erro ao encerrar a issue {issue_key}: {e}")
-
-            tabela = tabela.drop(index=c)
-            tabela.to_excel(self.nome_arquivo, index=False)
-
-            linha += 1
-            c += 1
 
 def main():
     app = QApplication(sys.argv)
